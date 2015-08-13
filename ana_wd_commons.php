@@ -6,17 +6,24 @@
 
 ###########################################################################
 
-$notewiki["enwiki"] = 0;
-$notewiki["svwiki"] = 0;
-$notewiki["frwiki"] = 0;
 $notewiki["dawiki"] = 0;
-$notewiki["dewiki"] = 0;
+$notewiki["svwiki"] = 0;
 $notewiki["nowiki"] = 0;
 $notewiki["nnwiki"] = 0;
 $notewiki["fiwiki"] = 0;
+
+$notewiki["enwiki"] = 0;
+$notewiki["dewiki"] = 0;
 $notewiki["nlwiki"] = 0;
+
+$notewiki["frwiki"] = 0;
 $notewiki["eswiki"] = 0;
 $notewiki["ptwiki"] = 0;
+$notewiki["itwiki"] = 0;
+
+$notewiki["plwiki"] = 0;
+$notewiki["ruwiki"] = 0;
+$notewiki["be_x_oldwiki"] = 0;
 
 ###########################################################################
 
@@ -72,44 +79,77 @@ function haand_pro($pro, $tag, $item_id, $cur_item)
 			echo "fejl-mainsnak-mis " . strtr($item_id, ' ', '_') . " p$pro\n";
 			print_r($cur_claim);
 		}
-		else if(!isset($cur_claim->mainsnak->datatype)) {
+		else if(!isset($cur_claim->mainsnak->datatype) && !isset($cur_claim->mainsnak->datavalue->type)) {
 			echo "fejl-datatype-mis " . strtr($item_id, ' ', '_') . " p$pro\n";
 			print_r($cur_claim);
 		}
-		else switch($cur_claim->mainsnak->datatype) {
-		case "string":
-			$sidst=$cur_claim->mainsnak->datavalue->value;
-			if($tag!="")
-				echo "$tag " . strtr($item_id, ' ', '_') . " $sidst\n";
-			break;
-		case "wikibase-item":
-			$sidst=$cur_claim->mainsnak->datavalue->value->{'numeric-id'};
-			if($tag!="")
-				echo "$tag " . strtr($item_id, ' ', '_') . " $sidst\n";
-			break;
-		case "globe-coordinate":
-			if(isset($globe_def["$cur_claim->mainsnak->datavalue->value->globe"])) {
-				$cur_globe=$globe_def["$cur_claim->mainsnak->datavalue->value->globe"];
+		else {
+			if(isset($cur_claim->mainsnak->datatype))
+				$cur_datatype=$cur_claim->mainsnak->datatype;
+			else if(isset($cur_claim->mainsnak->datavalue->type))
+				$cur_datatype=$cur_claim->mainsnak->datavalue->type;
+			else
+				die("fejl\n");
 
-				$latitude=$cur_claim->mainsnak->datavalue->value->latitude;
-				$longitude=$cur_claim->mainsnak->datavalue->value->longitude;
-				$sidst="$latitude $longitude";
-				if($tag!="")
-					echo "$tag-$cur_globe " . strtr($dawiki_link, ' ', '_') . " $sidst\n";
-			}
-			else {
-				echo "fejl-geo-$tag " . strtr($dawiki_link, ' ', '_') . " globe:" . $cur_claim->mainsnak->datavalue->value->globe . "\n";
+			switch ($cur_claim->mainsnak->snaktype) {
+			case "value":
+				switch($cur_datatype) {
+				case "string":
+					$sidst=$cur_claim->mainsnak->datavalue->value;
+					if($tag!="")
+						echo "$tag " . strtr($item_id, ' ', '_') . " $sidst\n";
+					break;
+				case "wikibase-item":
+				case "wikibase-entityid":
+					if(isset($cur_claim->mainsnak->datavalue->value->{'numeric-id'})) {
+						$sidst=$cur_claim->mainsnak->datavalue->value->{'numeric-id'};
+						if($tag!="")
+							echo "$tag " . strtr($item_id, ' ', '_') . " $sidst\n";
+					}
+					else {
+						echo "stop $item_id\n";
+						print_r($cur_claim);
+						exit(1);
+					}
+					break;
+				case "globe-coordinate":
+					if(isset($globe_def["$cur_claim->mainsnak->datavalue->value->globe"])) {
+						$cur_globe=$globe_def["$cur_claim->mainsnak->datavalue->value->globe"];
+
+						$latitude=$cur_claim->mainsnak->datavalue->value->latitude;
+						$longitude=$cur_claim->mainsnak->datavalue->value->longitude;
+						$sidst="$latitude $longitude";
+						if($tag!="")
+							echo "$tag-$cur_globe " . strtr($dawiki_link, ' ', '_') . " $sidst\n";
+					}
+					else {
+						echo "fejl-geo-$tag " . strtr($dawiki_link, ' ', '_') . " globe:" . $cur_claim->mainsnak->datavalue->value->globe . "\n";
+						print_r($cur_claim);
+					}
+					break;
+				case "statement":
+					# $sidst=$cur_claim->mainsnak->datavalue->value->{'numeric-id'};
+					$snak=$cur_claim->mainsnak->snaktype;
+					echo "$tag-$snak " . strtr($item_id, ' ', '_') . "\n";
+					break;
+				default:
+					echo "fejl-type " . strtr($item_id, ' ', '_') . " p$pro $cur_datatype\n";
+					print_r($cur_claim);
+				}
+				break;
+			case "somevalue":
+			case "novalue":
+				$snaktype=$cur_claim->mainsnak->snaktype;
+				if($tag=="")
+					echo "$snaktype p$pro $item_id $cur_datatype\n";
+				else
+					echo "$snaktype p$pro $item_id $cur_datatype $tag\n";
+				break;
+			default:
+				echo "stop $item_id\n";
 				print_r($cur_claim);
+				exit(1);
 			}
-			break;
-		case "statement":
-			# $sidst=$cur_claim->mainsnak->datavalue->value->{'numeric-id'};
-			$snak=$cur_claim->mainsnak->snaktype;
-			echo "$tag-$snak " . strtr($item_id, ' ', '_') . "\n";
-			break;
-		default:
-			echo "fejl-type " . strtr($item_id, ' ', '_') . " p$pro " . $cur_claim->mainsnak->datatype . "\n";
-			print_r($cur_claim);
 		}
 	}
 	return $sidst;
